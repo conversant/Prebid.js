@@ -9,7 +9,7 @@ import events from 'src/events';
 import constants from 'src/constants.json'
 
 describe('Conversant analytics adapter tests', function() {
-  let sandbox; // sinon sandbox to make restoring all stubbed objects eaiser
+  let sandbox; // sinon sandbox to make restoring all stubbed objects easier
   let xhr; // xhr stub from sinon for capturing data sent via ajax
   let clock; // clock stub from sinon to mock our cache cleanup interval
 
@@ -82,7 +82,7 @@ describe('Conversant analytics adapter tests', function() {
       VALID_CONFIGURATION.options.sampleRate = 100;
       conversantAnalytics.enableAnalytics(VALID_CONFIGURATION);
       expect(utils.logError.called).to.equal(false);
-      expect(caObj.DO_SAMPLE).to.equal(true);
+      expect(caObj.doSample).to.equal(true);
       conversantAnalytics.disableAnalytics();
       delete VALID_CONFIGURATION.options.sampleRate;
     });
@@ -93,7 +93,7 @@ describe('Conversant analytics adapter tests', function() {
       VALID_CONFIGURATION.options.sampleRate = 0;
       conversantAnalytics.enableAnalytics(VALID_CONFIGURATION);
       expect(utils.logError.called).to.equal(false);
-      expect(caObj.DO_SAMPLE).to.equal(false);
+      expect(caObj.doSample).to.equal(false);
       conversantAnalytics.disableAnalytics();
       delete VALID_CONFIGURATION.options.sampleRate;
     });
@@ -171,8 +171,7 @@ describe('Conversant analytics adapter tests', function() {
     });
 
     it('getLookupKey() should return correct object', function() {
-      let foo; // undefined var
-      let key = caObj.getLookupKey(foo, foo, foo);
+      let key = caObj.getLookupKey(undefined, undefined, undefined);
       expect(key).to.equal('undefined-undefined-undefined');
 
       key = caObj.getLookupKey('foo', 'bar', 'baz');
