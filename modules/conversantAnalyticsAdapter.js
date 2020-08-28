@@ -15,23 +15,22 @@ const ANALYTICS_TYPE = 'endpoint';
 const URL = 'https://web.hb.ad.cpe.dotomi.com/cvx/event/prebidanalytics';
 const ANALYTICS_CODE = 'conversant';
 
-export const LOG_PREFIX = 'Conversant analytics adapter: ';
+export const CNVR_CONSTANTS = {
+  LOG_PREFIX: 'Conversant analytics adapter: ',
+  // Maximum time to keep an item in the cache before it gets purged
+  MAX_MILLISECONDS_IN_CACHE: 30000,
+  // How often cache cleanup will run
+  CACHE_CLEANUP_TIME_IN_MILLIS: 30000,
+  // Should be integer from 0-100, 0 is turned off, 100 is sample every instance
+  DEFAULT_SAMPLE_RATE: 50,
 
-// Maximum time to keep an item in the cache before it gets purged
-export const MAX_MILLISECONDS_IN_CACHE = 30000;
-
-// How often cache cleanup will run
-export const CACHE_CLEANUP_TIME_IN_MILLIS = 30000;
-
-// Should be integer from 0-100, 0 is turned off, 100 is sample every instance
-export const DEFAULT_SAMPLE_RATE = 50;
-
-// BID STATUS CODES
-export const CNVR_WIN = 10;
-export const CNVR_BID = 20;
-export const CNVR_NO_BID = 30;
-export const CNVR_TIMEOUT = 40;
-export const CNVR_RENDER_FAILED = 50;
+  // BID STATUS CODES
+  WIN: 10,
+  BID: 20,
+  NO_BID: 30,
+  TIMEOUT: 40,
+  RENDER_FAILED: 50
+};
 
 // Saves passed in options from the bid adapter
 let initOptions;
@@ -39,30 +38,32 @@ let initOptions;
 // Simple flag to help handle any tear down needed on disable
 let conversantAnalyticsEnabled = false;
 
-// Turns on sampling for an instance of prebid analytics.
-export let doSample = true;
+export const cnvrHelper = {
+  // Turns on sampling for an instance of prebid analytics.
+  doSample: true,
 
-/**
- * Used to hold data for RENDER FAILED events so we can send a payload back that will match our original auction data.
- * Contains the following key/value data:
- * <adId> => {
- *     'bidderCode': <bidderCode>,
- *     'adUnitCode': <adUnitCode>,
- *     'auctionId': <auctionId>,
- *     'timeReceived': Date.now()  //For cache cleaning
- * }
- */
-export const adIdLookup = {};
+  /**
+   * Used to hold data for RENDER FAILED events so we can send a payload back that will match our original auction data.
+   * Contains the following key/value data:
+   * <adId> => {
+   *     'bidderCode': <bidderCode>,
+   *     'adUnitCode': <adUnitCode>,
+   *     'auctionId': <auctionId>,
+   *     'timeReceived': Date.now()  //For cache cleaning
+   * }
+   */
+  adIdLookup: {},
 
-/**
- * Time out events happen before AUCTION END so we can save them in a cache and report them at the same time as the
- * AUCTION END event.  Has the following data and key is based off of auctionId, adUnitCode, bidderCode from
- * keyStr = getLookupKey(auctionId, adUnitCode, bidderCode);
- * <keyStr> => {
- *     timeReceived: Date.now() //so cache can be purged in case it doesn't get cleaned out at auctionEnd
- * }
- */
-export const timeoutCache = {};
+  /**
+   * Time out events happen before AUCTION END so we can save them in a cache and report them at the same time as the
+   * AUCTION END event.  Has the following data and key is based off of auctionId, adUnitCode, bidderCode from
+   * keyStr = getLookupKey(auctionId, adUnitCode, bidderCode);
+   * <keyStr> => {
+   *     timeReceived: Date.now() //so cache can be purged in case it doesn't get cleaned out at auctionEnd
+   * }
+   */
+  timeoutCache: {}
+};
 
 /**
  * Cleanup timer for the adIdLookup and timeoutCache caches. If all works properly then the caches are self-cleaning
@@ -74,8 +75,8 @@ let conversantAnalytics = Object.assign(
   adapter({URL, ANALYTICS_TYPE}),
   {
     track({eventType, args}) {
-      if (doSample) {
-        utils.logMessage(LOG_PREFIX + 'track(): ' + eventType, Object.assign({}, args));
+      if (cnvrHelper.doSample) {
+        utils.logMessage(CNVR_CONSTANTS.LOG_PREFIX + 'track(): ' + eventType, Object.assign({}, args));
         switch (eventType) {
           case AUCTION_END:
             onAuctionEnd(args);
@@ -90,7 +91,7 @@ let conversantAnalytics = Object.assign(
             onBidTimeout(args);
             break;
         } // END switch
-      } // END IF(doSample)
+      } // END IF(cnvrHelper.doSample)
     } // END track()
   }
 );
@@ -117,8 +118,8 @@ let conversantAnalytics = Object.assign(
  */
 function onBidTimeout(args) {
   args.forEach(timedOutBid => {
-    const timeoutCacheKey = getLookupKey(timedOutBid.auctionId, timedOutBid.adUnitCode, timedOutBid.bidder);
-    timeoutCache[timeoutCacheKey] = {
+    const timeoutCacheKey = cnvrHelper.getLookupKey(timedOutBid.auctionId, timedOutBid.adUnitCode, timedOutBid.bidder);
+    cnvrHelper.timeoutCache[timeoutCacheKey] = {
       timeReceived: Date.now()
     }
   });
@@ -135,25 +136,25 @@ function onBidWon(args) {
   const auctionId = args.auctionId;
   // Make sure we have all the data we need
   if (!bidderCode || !adUnitCode || !auctionId) {
-    utils.logError(LOG_PREFIX + 'onBidWon() did not get all the necessary data to process the event.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onBidWon() did not get all the necessary data to process the event.');
     return;
   }
-  const bidWonPayload = createPayload('bid_won', auctionId);
+  const bidWonPayload = cnvrHelper.createPayload('bid_won', auctionId);
 
-  const adUnitPayload = createAdUnit();
+  const adUnitPayload = cnvrHelper.createAdUnit();
   bidWonPayload.adUnits[adUnitCode] = adUnitPayload;
 
-  const bidPayload = initializeBidDefaults();
-  bidPayload.eventCodes.push(CNVR_WIN);
-  bidPayload.adSize = createAdSize(args.width, args.height);
+  const bidPayload = cnvrHelper.initializeBidDefaults();
+  bidPayload.eventCodes.push(CNVR_CONSTANTS.WIN);
+  bidPayload.adSize = cnvrHelper.createAdSize(args.width, args.height);
   bidPayload.cpm = args.cpm;
   bidPayload.originalCpm = args.originalCpm;
   bidPayload.currency = args.currency;
   bidPayload.timeToRespond = args.timeToRespond;
   adUnitPayload.bids[bidderCode] = bidPayload;
 
-  if (!adIdLookup[args.adId]) {
-    adIdLookup[args.adId] = {
+  if (!cnvrHelper.adIdLookup[args.adId]) {
+    cnvrHelper.adIdLookup[args.adId] = {
       'bidderCode': bidderCode,
       'adUnitCode': adUnitCode,
       'auctionId': auctionId,
@@ -178,25 +179,25 @@ function onAdRenderFailed(args) {
   const adId = args.adId;
   // Make sure we have all the data we need, adId is optional so it's not guaranteed, without that we can't match it up
   // to our adIdLookup data.
-  if (!adId || !adIdLookup[adId]) {
-    utils.logError(LOG_PREFIX + "onAdRenderFailed(): Unable to process RENDER FAILED because adId is missing or doesn't match a record in our cache.");
+  if (!adId || !cnvrHelper.adIdLookup[adId]) {
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + "onAdRenderFailed(): Unable to process RENDER FAILED because adId is missing or doesn't match a record in our cache.");
     return; // Either no adId to match against a bidWon event, or no data saved from a bidWon event that matches the adId
   }
-  const adIdObj = adIdLookup[adId];
+  const adIdObj = cnvrHelper.adIdLookup[adId];
   const adUnitCode = adIdObj['adUnitCode'];
   const bidderCode = adIdObj['bidderCode'];
   const auctionId = adIdObj['auctionId'];
-  delete adIdLookup[adId]; // cleanup our cache
+  delete cnvrHelper.adIdLookup[adId]; // cleanup our cache
 
   if (!bidderCode || !adUnitCode) {
-    utils.logError(LOG_PREFIX + 'onAdRenderFailed(): Unable to process RENDER FAILED because lookup cache did not have all the data we required.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onAdRenderFailed(): Unable to process RENDER FAILED because lookup cache did not have all the data we required.');
     return;
   }
 
-  const renderFailedPayload = createPayload('render_failed', auctionId);
-  const adUnitPayload = createAdUnit();
-  adUnitPayload.bids[bidderCode] = initializeBidDefaults();
-  adUnitPayload.bids[bidderCode].eventCodes.push(CNVR_RENDER_FAILED);
+  const renderFailedPayload = cnvrHelper.createPayload('render_failed', auctionId);
+  const adUnitPayload = cnvrHelper.createAdUnit();
+  adUnitPayload.bids[bidderCode] = cnvrHelper.initializeBidDefaults();
+  adUnitPayload.bids[bidderCode].eventCodes.push(CNVR_CONSTANTS.RENDER_FAILED);
   adUnitPayload.bids[bidderCode].message = 'REASON: ' + args.reason + '. MESSAGE: ' + args.message;
   renderFailedPayload.adUnits[adUnitCode] = adUnitPayload;
   sendData(renderFailedPayload);
@@ -212,29 +213,29 @@ function onAdRenderFailed(args) {
 function onAuctionEnd(args) {
   const auctionId = args.auctionId;
   if (!auctionId) {
-    utils.logError(LOG_PREFIX + 'onAuctionEnd(): No auctionId in args supplied so unable to process event.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onAuctionEnd(): No auctionId in args supplied so unable to process event.');
     return;
   }
 
-  const auctionEndPayload = createPayload('auction_end', auctionId);
+  const auctionEndPayload = cnvrHelper.createPayload('auction_end', auctionId);
   // Get bid request information from adUnits
   if (!Array.isArray(args.adUnits)) {
-    utils.logError(LOG_PREFIX + 'onAuctionEnd(): adUnits not defined in arguments.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onAuctionEnd(): adUnits not defined in arguments.');
     return;
   }
 
   args.adUnits.forEach(adUnit => {
-    const cnvrAdUnit = createAdUnit();
+    const cnvrAdUnit = cnvrHelper.createAdUnit();
     // Initialize bids with bidderCode
     adUnit.bids.forEach(bid => {
-      cnvrAdUnit.bids[bid.bidder] = initializeBidDefaults();
+      cnvrAdUnit.bids[bid.bidder] = cnvrHelper.initializeBidDefaults();
 
       // Check for cached timeout responses
-      const timeoutKey = getLookupKey(auctionId, adUnit.code, bid.bidder);
-      if (timeoutCache[timeoutKey]) {
-        cnvrAdUnit.bids[bid.bidder].eventCodes.push(CNVR_TIMEOUT);
+      const timeoutKey = cnvrHelper.getLookupKey(auctionId, adUnit.code, bid.bidder);
+      if (cnvrHelper.timeoutCache[timeoutKey]) {
+        cnvrAdUnit.bids[bid.bidder].eventCodes.push(CNVR_CONSTANTS.TIMEOUT);
         cnvrAdUnit.bids[bid.bidder].timeToRespond = args.timeout; // set to Auction defined timeout amount
-        delete timeoutCache[timeoutKey];
+        delete cnvrHelper.timeoutCache[timeoutKey];
       }
     });
 
@@ -243,7 +244,7 @@ function onAuctionEnd(args) {
       const adSizes = adUnit.sizes;
       adSizes.forEach(size => {
         if (!Array.isArray(size) || size.length !== 2) {
-          utils.logMessage(LOG_PREFIX + 'Unknown object while retrieving adUnit sizes.', adUnit);
+          utils.logMessage(CNVR_CONSTANTS.LOG_PREFIX + 'Unknown object while retrieving adUnit sizes.', adUnit);
           return; // skips to next item
         }
         cnvrAdUnit.sizes.push({
@@ -261,14 +262,14 @@ function onAuctionEnd(args) {
       const bidPayload = utils.deepAccess(auctionEndPayload, 'adUnits.' + noBid.adUnitCode + '.bids.' + noBid.bidder);
 
       if (bidPayload) {
-        bidPayload.eventCodes.push(CNVR_NO_BID);
+        bidPayload.eventCodes.push(CNVR_CONSTANTS.NO_BID);
         bidPayload.timeToRespond = 0; // no info for this, would have to capture event and save it there
       } else {
-        utils.logMessage(LOG_PREFIX + 'Unable to locate bid object via adUnitCode/bidderCode in payload for noBid reply in END_AUCTION', Object.assign({}, noBid));
+        utils.logMessage(CNVR_CONSTANTS.LOG_PREFIX + 'Unable to locate bid object via adUnitCode/bidderCode in payload for noBid reply in END_AUCTION', Object.assign({}, noBid));
       }
     });
   } else {
-    utils.logError(LOG_PREFIX + 'onAuctionEnd(): noBids not defined in arguments.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onAuctionEnd(): noBids not defined in arguments.');
   }
 
   // Get bid data from bids sent
@@ -276,7 +277,7 @@ function onAuctionEnd(args) {
     args.bidsReceived.forEach(bid => {
       const bidPayload = utils.deepAccess(auctionEndPayload, 'adUnits.' + bid.adUnitCode + '.bids.' + bid.bidderCode);
       if (bidPayload) {
-        bidPayload.eventCodes.push(CNVR_BID);
+        bidPayload.eventCodes.push(CNVR_CONSTANTS.BID);
         bidPayload.timeToRespond = bid.timeToRespond;
         bidPayload.originalCpm = bid.originalCpm;
         bidPayload.cpm = bid.cpm;
@@ -286,11 +287,11 @@ function onAuctionEnd(args) {
           'h': bid.height
         };
       } else {
-        utils.logMessage(LOG_PREFIX + 'Unable to locate bid object via adUnitCode/bidderCode in payload for bid reply in END_AUCTION', Object.assign({}, bid));
+        utils.logMessage(CNVR_CONSTANTS.LOG_PREFIX + 'Unable to locate bid object via adUnitCode/bidderCode in payload for bid reply in END_AUCTION', Object.assign({}, bid));
       }
     });
   } else {
-    utils.logError(LOG_PREFIX + 'onAuctionEnd(): bidsReceived not defined in arguments.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'onAuctionEnd(): bidsReceived not defined in arguments.');
   }
 
   sendData(auctionEndPayload);
@@ -304,10 +305,10 @@ function onAuctionEnd(args) {
  * @param cacheObj one of our cache objects [adIdLookup or timeoutCache]
  * @param currTime the current timestamp at the start of the most recent timer execution.
  */
-export function cleanCache(cacheObj, currTime) {
+cnvrHelper.cleanCache = function(cacheObj, currTime) {
   Object.keys(cacheObj).forEach(key => {
     const timeInCache = currTime - cacheObj[key].timeReceived;
-    if (timeInCache >= MAX_MILLISECONDS_IN_CACHE) {
+    if (timeInCache >= CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE) {
       delete cacheObj[key];
     }
   });
@@ -320,7 +321,7 @@ export function cleanCache(cacheObj, currTime) {
  * @param bidderCode bidder code
  * @returns string concatenation of all the params into a string key for timeoutCache
  */
-export function getLookupKey(auctionId, adUnitCode, bidderCode) {
+cnvrHelper.getLookupKey = function(auctionId, adUnitCode, bidderCode) {
   return auctionId + '-' + adUnitCode + '-' + bidderCode;
 }
 
@@ -338,7 +339,7 @@ export function getLookupKey(auctionId, adUnitCode, bidderCode) {
  *      sid: *}
  * }}  Basic structure of our object that we return to the server.
  */
-export function createPayload(payloadType, auctionId) {
+cnvrHelper.createPayload = function(payloadType, auctionId) {
   return {
     requestType: payloadType,
     auction: {
@@ -356,11 +357,11 @@ export function createPayload(payloadType, auctionId) {
  * @param height in peixl (must be an int)
  * @returns {{w: *, h: *}} a fully valid adSize object
  */
-export function createAdSize(width, height) {
-  if (!isInt(width)) {
+cnvrHelper.createAdSize = function(width, height) {
+  if (!cnvrHelper.isInt(width)) {
     width = -1;
   }
-  if (!isInt(height)) {
+  if (!cnvrHelper.isInt(height)) {
     height = -1;
   }
   return {
@@ -373,7 +374,7 @@ export function createAdSize(width, height) {
  * Helper to create the basic structure of our adUnit payload
  * @returns {{sizes: [], bids: {}}} Basic adUnit payload structure as follows
  */
-export function createAdUnit() {
+cnvrHelper.createAdUnit = function() {
   return {
     sizes: [],
     bids: {}
@@ -383,7 +384,7 @@ export function createAdUnit() {
 /**
  * Helper to create a basic bid payload object.  By pre-creating the eventCodes we can easily push in our statuses.
 */
-export function initializeBidDefaults() {
+cnvrHelper.initializeBidDefaults = function() {
   return {
     'eventCodes': []
   };
@@ -394,7 +395,7 @@ export function initializeBidDefaults() {
  * extra header params.
  * @param payload our JSON payload from either AUCTION END, BID WIN, RENDER FAILED
  */
-export function sendData(payload) {
+function sendData(payload) {
   ajax(URL, function () {}, JSON.stringify(payload), {contentType: 'text/plain'});
 }
 
@@ -403,7 +404,7 @@ export function sendData(payload) {
  * @param value any value
  * @returns {boolean} true if integer, false if not
  */
-export function isInt(value) {
+cnvrHelper.isInt = function(value) {
   if (isNaN(value)) {
     return false;
   }
@@ -419,30 +420,30 @@ conversantAnalytics.originDisableAnalytics = conversantAnalytics.disableAnalytic
 // override enableAnalytics so we can get access to the config passed in from the page
 conversantAnalytics.enableAnalytics = function (config) {
   if (!config || !config.options || !config.options.site_id) {
-    utils.logError(LOG_PREFIX + 'siteId is required.');
+    utils.logError(CNVR_CONSTANTS.LOG_PREFIX + 'siteId is required.');
     return;
   }
 
   cacheCleanupInterval = setInterval(
     function() {
       const currTime = Date.now();
-      cleanCache(adIdLookup, currTime);
-      cleanCache(timeoutCache, currTime);
+      cnvrHelper.cleanCache(cnvrHelper.adIdLookup, currTime);
+      cnvrHelper.cleanCache(cnvrHelper.timeoutCache, currTime);
     },
-    CACHE_CLEANUP_TIME_IN_MILLIS
+    CNVR_CONSTANTS.CACHE_CLEANUP_TIME_IN_MILLIS
   );
 
   initOptions = config.options;
 
   // Use our default sample rate to determine whether to turn on analytics for this instance. If a sample_rate is defined
   // in options and it is an integer <= 100 or >= 0 then use that as the sample rate.
-  let sampleRate = DEFAULT_SAMPLE_RATE;
-  if (isInt(initOptions.sampleRate) && initOptions.sampleRate >= 0 && initOptions.sampleRate <= 100) {
+  let sampleRate = CNVR_CONSTANTS.DEFAULT_SAMPLE_RATE;
+  if (cnvrHelper.isInt(initOptions.sampleRate) && initOptions.sampleRate >= 0 && initOptions.sampleRate <= 100) {
     sampleRate = initOptions.sampleRate;
   }
-  utils.logInfo(LOG_PREFIX + 'Sample rate set to ' + sampleRate + '%');
+  utils.logInfo(CNVR_CONSTANTS.LOG_PREFIX + 'Sample rate set to ' + sampleRate + '%');
   // Math.random() pseudo-random number in the range 0 to less than 1 (inclusive of 0, but not 1)
-  doSample = Math.random() * 100 < sampleRate;
+  cnvrHelper.doSample = Math.random() * 100 < sampleRate;
 
   conversantAnalyticsEnabled = true;
   conversantAnalytics.originEnableAnalytics(config); // call the base class function
@@ -458,8 +459,8 @@ conversantAnalytics.disableAnalytics = function () {
 
   // Cleanup our caches and disable our timer
   clearInterval(cacheCleanupInterval);
-  cleanCache(timeoutCache, Date.now() + MAX_MILLISECONDS_IN_CACHE);
-  cleanCache(adIdLookup, Date.now() + MAX_MILLISECONDS_IN_CACHE);
+  cnvrHelper.cleanCache(cnvrHelper.timeoutCache, Date.now() + CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE);
+  cnvrHelper.cleanCache(cnvrHelper.adIdLookup, Date.now() + CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE);
 
   conversantAnalyticsEnabled = false;
   conversantAnalytics.originDisableAnalytics();
