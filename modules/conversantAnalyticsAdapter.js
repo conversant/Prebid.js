@@ -104,7 +104,7 @@ let conversantAnalytics = Object.assign(
  *
  * Current assumption is that the timeout will always be an array even if it is just one object in the array.
  * @param args  [{
-  "bidId": "80882409358b8a8",
+    "bidId": "80882409358b8a8",
     "bidder": "conversant",
     "adUnitCode": "MedRect",
     "auctionId": "afbd6e0b-e45b-46ab-87bf-c0bac0cb8881"
@@ -312,7 +312,7 @@ cnvrHelper.cleanCache = function(cacheObj, currTime) {
       delete cacheObj[key];
     }
   });
-}
+};
 
 /**
  * Helper to create an object lookup key for our timeoutCache
@@ -323,7 +323,7 @@ cnvrHelper.cleanCache = function(cacheObj, currTime) {
  */
 cnvrHelper.getLookupKey = function(auctionId, adUnitCode, bidderCode) {
   return auctionId + '-' + adUnitCode + '-' + bidderCode;
-}
+};
 
 /**
  * Creates our root payload object that gets sent back to the server
@@ -349,7 +349,7 @@ cnvrHelper.createPayload = function(payloadType, auctionId) {
     },
     adUnits: {}
   };
-}
+};
 
 /**
  * Helper to create an adSize object, if the value passed in is not an int then set it to -1
@@ -358,17 +358,17 @@ cnvrHelper.createPayload = function(payloadType, auctionId) {
  * @returns {{w: *, h: *}} a fully valid adSize object
  */
 cnvrHelper.createAdSize = function(width, height) {
-  if (!cnvrHelper.isInt(width)) {
+  if (!utils.isInteger(width)) {
     width = -1;
   }
-  if (!cnvrHelper.isInt(height)) {
+  if (!utils.isInteger(height)) {
     height = -1;
   }
   return {
     'w': width,
     'h': height
   };
-}
+};
 
 /**
  * Helper to create the basic structure of our adUnit payload
@@ -379,7 +379,7 @@ cnvrHelper.createAdUnit = function() {
     sizes: [],
     bids: {}
   };
-}
+};
 
 /**
  * Helper to create a basic bid payload object.  By pre-creating the eventCodes we can easily push in our statuses.
@@ -388,7 +388,7 @@ cnvrHelper.initializeBidDefaults = function() {
   return {
     'eventCodes': []
   };
-}
+};
 
 /**
  * Helper function to send data back to server.  Need to make sure we don't trigger a CORS preflight by not adding
@@ -397,19 +397,6 @@ cnvrHelper.initializeBidDefaults = function() {
  */
 function sendData(payload) {
   ajax(URL, function () {}, JSON.stringify(payload), {contentType: 'text/plain'});
-}
-
-/**
- * Helper to determine if value is integer.  Number.isInteger() not supported everywhere
- * @param value any value
- * @returns {boolean} true if integer, false if not
- */
-cnvrHelper.isInt = function(value) {
-  if (isNaN(value)) {
-    return false;
-  }
-  const x = parseFloat(value);
-  return (x | 0) === x;
 }
 
 // =============================== BOILERPLATE FOR PRE-BID ANALYTICS SETUP  ============================================
@@ -438,7 +425,7 @@ conversantAnalytics.enableAnalytics = function (config) {
   // Use our default sample rate to determine whether to turn on analytics for this instance. If a sample_rate is defined
   // in options and it is an integer <= 100 or >= 0 then use that as the sample rate.
   let sampleRate = CNVR_CONSTANTS.DEFAULT_SAMPLE_RATE;
-  if (cnvrHelper.isInt(initOptions.sampleRate) && initOptions.sampleRate >= 0 && initOptions.sampleRate <= 100) {
+  if (utils.isInteger(initOptions.sampleRate) && initOptions.sampleRate >= 0 && initOptions.sampleRate <= 100) {
     sampleRate = initOptions.sampleRate;
   }
   utils.logInfo(CNVR_CONSTANTS.LOG_PREFIX + 'Sample rate set to ' + sampleRate + '%');
@@ -459,8 +446,8 @@ conversantAnalytics.disableAnalytics = function () {
 
   // Cleanup our caches and disable our timer
   clearInterval(cacheCleanupInterval);
-  cnvrHelper.cleanCache(cnvrHelper.timeoutCache, Date.now() + CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE);
-  cnvrHelper.cleanCache(cnvrHelper.adIdLookup, Date.now() + CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE);
+  cnvrHelper.timeoutCache = {};
+  cnvrHelper.adIdLookup = {};
 
   conversantAnalyticsEnabled = false;
   conversantAnalytics.originDisableAnalytics();

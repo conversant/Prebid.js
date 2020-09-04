@@ -17,13 +17,13 @@ describe('Conversant analytics adapter tests', function() {
   let requests = [];
   const DATESTAMP = Date.now();
 
-  let VALID_CONFIGURATION = {
+  const VALID_CONFIGURATION = {
     options: {
       site_id: SITE_ID
     }
   };
 
-  let VALID_ALWAYS_SAMPLE_CONFIG = {
+  const VALID_ALWAYS_SAMPLE_CONFIG = {
     options: {
       site_id: SITE_ID,
       sampleRate: 100
@@ -76,24 +76,20 @@ describe('Conversant analytics adapter tests', function() {
 
     it('should sample when sampling set to 1', function() {
       sandbox.stub(utils, 'logError');
-
-      VALID_CONFIGURATION.options.sampleRate = 100;
-      conversantAnalytics.enableAnalytics(VALID_CONFIGURATION);
+      conversantAnalytics.enableAnalytics(VALID_ALWAYS_SAMPLE_CONFIG);
       expect(utils.logError.called).to.equal(false);
       expect(cnvrHelper.doSample).to.equal(true);
       conversantAnalytics.disableAnalytics();
-      delete VALID_CONFIGURATION.options.sampleRate;
     });
 
     it('should NOT sample when sampling set to 0', function() {
       sandbox.stub(utils, 'logError');
-
-      VALID_CONFIGURATION.options.sampleRate = 0;
-      conversantAnalytics.enableAnalytics(VALID_CONFIGURATION);
+      const NEVER_SAMPLE_CONFIG = utils.deepClone(VALID_ALWAYS_SAMPLE_CONFIG);
+      NEVER_SAMPLE_CONFIG['options'].sampleRate = 0;
+      conversantAnalytics.enableAnalytics(NEVER_SAMPLE_CONFIG);
       expect(utils.logError.called).to.equal(false);
       expect(cnvrHelper.doSample).to.equal(false);
       conversantAnalytics.disableAnalytics();
-      delete VALID_CONFIGURATION.options.sampleRate;
     });
   });
 
@@ -107,65 +103,42 @@ describe('Conversant analytics adapter tests', function() {
       cnvrHelper.timeoutCache['keep'] = {timeReceived: DATESTAMP + 1};
       cnvrHelper.timeoutCache['delete'] = {timeReceived: DATESTAMP - CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE};
 
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(2);
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(2);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(2);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(2);
 
       clock.tick(CNVR_CONSTANTS.CACHE_CLEANUP_TIME_IN_MILLIS);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1);
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(1);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(1);
 
       conversantAnalytics.disableAnalytics();
 
       // After disable we should cleanup the cache
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0);
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(0);
-    });
-
-    it('isInt() should return true', function() {
-      expect(cnvrHelper.isInt(1)).to.equal(true);
-      expect(cnvrHelper.isInt(0)).to.equal(true);
-      expect(cnvrHelper.isInt(-1)).to.equal(true);
-      expect(cnvrHelper.isInt(111)).to.equal(true);
-      expect(cnvrHelper.isInt(1.0)).to.equal(true);
-    });
-
-    it('isInt() should return false', function() {
-      expect(cnvrHelper.isInt(0.1)).to.equal(false);
-      expect(cnvrHelper.isInt(1.1)).to.equal(false);
-      expect(cnvrHelper.isInt('foo')).to.equal(false);
-      expect(cnvrHelper.isInt(undefined)).to.equal(false);
-      expect(cnvrHelper.isInt(false)).to.equal(false);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(0);
     });
 
     it('initializeBidDefaults() should return correct object', function() {
       let bid = cnvrHelper.initializeBidDefaults();
-      expect(Array.isArray(bid.eventCodes)).to.equal(true);
-      expect(bid.eventCodes.length).to.equal(0);
-      expect(Object.keys(bid).length).to.equal(1);
+      expect(bid).to.deep.equal({'eventCodes': []});
     });
 
     it('createAdUnit() should return correct object', function() {
       let adUnit = cnvrHelper.createAdUnit();
-      expect(Array.isArray(adUnit.sizes)).to.equal(true);
-      expect(adUnit.sizes.length).to.equal(0);
-      expect(typeof adUnit.bids).to.equal('object');
-      expect(Object.keys(adUnit.bids).length).to.equal(0);
-      expect(Object.keys(adUnit).length).to.equal(2);
+      expect(adUnit).to.deep.equal({
+        sizes: [],
+        bids: {}
+      });
     });
 
     it('createAdSize() should return correct object', function() {
       let adSize = cnvrHelper.createAdSize(1, 2);
-      expect(adSize.w).to.equal(1);
-      expect(adSize.h).to.equal(2);
-      expect(Object.keys(adSize).length).to.equal(2);
+      expect(adSize).to.deep.equal({w: 1, h: 2});
 
       adSize = cnvrHelper.createAdSize();
-      expect(adSize.w).to.equal(-1);
-      expect(adSize.h).to.equal(-1);
+      expect(adSize).to.deep.equal({w: -1, h: -1});
 
       adSize = cnvrHelper.createAdSize('foo', 'bar');
-      expect(adSize.w).to.equal(-1);
-      expect(adSize.h).to.equal(-1);
+      expect(adSize).to.deep.equal({w: -1, h: -1});
     });
 
     it('getLookupKey() should return correct object', function() {
@@ -182,37 +155,22 @@ describe('Conversant analytics adapter tests', function() {
       conversantAnalytics.enableAnalytics(VALID_ALWAYS_SAMPLE_CONFIG);
 
       let payload = cnvrHelper.createPayload(REQUEST_TYPE, AUCTION_ID);
-      expect(payload.requestType).to.equal(REQUEST_TYPE);
-      expect(payload.auction.auctionId).to.equal(AUCTION_ID);
-      expect(payload.auction.preBidVersion).to.equal(PREBID_VERSION);
-      expect(payload.auction.sid).to.equal(VALID_ALWAYS_SAMPLE_CONFIG.options.site_id);
-      expect(Object.keys(payload.auction).length).to.equal(3);
-
-      expect(typeof payload.adUnits).to.equal('object');
-      expect(Object.keys(payload.adUnits).length).to.equal(0);
-
-      expect(Object.keys(payload).length).to.equal(3);
+      expect(payload).to.deep.equal({
+        requestType: REQUEST_TYPE,
+        auction: {
+          auctionId: AUCTION_ID,
+          sid: VALID_ALWAYS_SAMPLE_CONFIG.options.site_id,
+          preBidVersion: PREBID_VERSION
+        },
+        adUnits: {}
+      });
 
       conversantAnalytics.disableAnalytics();
-    });
-
-    it('cleanCache() should purge old objects and not new ones', function() {
-      const CURR_TIME = Date.now();
-      const EXPIRED_TIME = CURR_TIME - CNVR_CONSTANTS.MAX_MILLISECONDS_IN_CACHE;
-      let cacheObj = {};
-      cacheObj.foo = { timeReceived: CURR_TIME };
-      cacheObj.bar = { timeReceived: EXPIRED_TIME };
-
-      cnvrHelper.cleanCache(cacheObj, CURR_TIME);
-
-      expect(Object.keys(cacheObj).length).to.equal(1);
-      expect(cacheObj.foo).to.not.be.undefined;
-      expect(cacheObj.bar).to.be.undefined;
     });
   });
 
   describe('Bid Timeout Event Tests', function() {
-    const bidTimeoutPayload = [{
+    const BID_TIMEOUT_PAYLOAD = [{
       'bidId': '80882409358b8a8',
       'bidder': 'conversant',
       'adUnitCode': 'MedRect',
@@ -222,8 +180,7 @@ describe('Conversant analytics adapter tests', function() {
       'bidder': 'conversant',
       'adUnitCode': 'Leaderboard',
       'auctionId': 'afbd6e0b-e45b-46ab-87bf-c0bac0cb8881'
-    }
-    ];
+    }];
 
     beforeEach(function () {
       conversantAnalytics.enableAnalytics(VALID_ALWAYS_SAMPLE_CONFIG);
@@ -234,10 +191,15 @@ describe('Conversant analytics adapter tests', function() {
     });
 
     it('should put both items in timeout cache', function() {
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(0);
-      events.emit(constants.EVENTS.BID_TIMEOUT, bidTimeoutPayload);
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(2);
-      expect(requests.length).to.equal(0);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(0);
+      events.emit(constants.EVENTS.BID_TIMEOUT, BID_TIMEOUT_PAYLOAD);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(2);
+
+      BID_TIMEOUT_PAYLOAD.forEach(timeoutBid => {
+        const key = cnvrHelper.getLookupKey(timeoutBid.auctionId, timeoutBid.adUnitCode, timeoutBid.bidder);
+        expect(cnvrHelper.timeoutCache[key].timeReceived).to.not.be.undefined;
+      });
+      expect(requests).to.have.lengthOf(0);
     });
   });
 
@@ -269,10 +231,10 @@ describe('Conversant analytics adapter tests', function() {
         timeReceived: Date.now()
       };
 
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1);
       events.emit(constants.EVENTS.AD_RENDER_FAILED, RENDER_FAILED_PAYLOAD);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0); // object should be removed
-      expect(requests.length).to.equal(1);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0); // object should be removed
+      expect(requests).to.have.lengthOf(1);
       const data = JSON.parse(requests[0].requestBody);
 
       expect(data.auction.auctionId).to.equal('auctionId');
@@ -290,10 +252,11 @@ describe('Conversant analytics adapter tests', function() {
         timeReceived: Date.now()
       };
 
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1);
       events.emit(constants.EVENTS.AD_RENDER_FAILED, RENDER_FAILED_PAYLOAD_NO_ADID);
-      expect(requests.length).to.equal(0);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1); // object should be removed
+      expect(requests).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1); // same object in cache as before... no change
+      expect(cnvrHelper.adIdLookup[RENDER_FAILED_PAYLOAD.adId]).to.not.be.undefined;
     });
 
     it('should not send data if bad data in lookup', function() {
@@ -302,11 +265,11 @@ describe('Conversant analytics adapter tests', function() {
         auctionId: 'auctionId',
         timeReceived: Date.now()
       };
-      expect(requests.length).to.equal(0);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1);
+      expect(requests).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1);
       events.emit(constants.EVENTS.AD_RENDER_FAILED, RENDER_FAILED_PAYLOAD);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0); // object should be removed but no call made to send data
-      expect(requests.length).to.equal(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0); // object should be removed but no call made to send data
+      expect(requests).to.have.lengthOf(0);
     });
   });
 
@@ -391,26 +354,26 @@ describe('Conversant analytics adapter tests', function() {
     });
 
     it('should not send data or put a record in adIdLookup when bad data provided', function() {
-      expect(requests.length).to.equal(0);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0);
       events.emit(constants.EVENTS.BID_WON, BAD_BID_WON_ARGS);
-      expect(requests.length).to.equal(0);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0);
     });
 
     it('should send data and put a record in adIdLookup', function() {
-      expect(requests.length).to.equal(0);
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(0);
       events.emit(constants.EVENTS.BID_WON, GOOD_BID_WON_ARGS);
 
       // Check that adIdLookup was set correctly
-      expect(Object.keys(cnvrHelper.adIdLookup).length).to.equal(1);
+      expect(Object.keys(cnvrHelper.adIdLookup)).to.have.lengthOf(1);
       expect(cnvrHelper.adIdLookup[GOOD_BID_WON_ARGS.adId].auctionId).to.equal(GOOD_BID_WON_ARGS.auctionId);
       expect(cnvrHelper.adIdLookup[GOOD_BID_WON_ARGS.adId].adUnitCode).to.equal(GOOD_BID_WON_ARGS.adUnitCode);
       expect(cnvrHelper.adIdLookup[GOOD_BID_WON_ARGS.adId].bidderCode).to.equal(GOOD_BID_WON_ARGS.bidderCode);
       expect(cnvrHelper.adIdLookup[GOOD_BID_WON_ARGS.adId].timeReceived).to.not.be.undefined;
 
-      expect(requests.length).to.equal(1);
+      expect(requests).to.have.lengthOf(1);
       const data = JSON.parse(requests[0].requestBody);
       expect(data.requestType).to.equal('bid_won');
       expect(data.auction.auctionId).to.equal(GOOD_BID_WON_ARGS.auctionId);
@@ -418,9 +381,9 @@ describe('Conversant analytics adapter tests', function() {
       expect(data.auction.sid).to.equal(VALID_ALWAYS_SAMPLE_CONFIG.options.site_id);
 
       expect(typeof data.adUnits).to.equal('object');
-      expect(Object.keys(data.adUnits).length).to.equal(1);
+      expect(Object.keys(data.adUnits)).to.have.lengthOf(1);
 
-      expect(Object.keys(data.adUnits[GOOD_BID_WON_ARGS.adUnitCode].bids).length).to.equal(1);
+      expect(Object.keys(data.adUnits[GOOD_BID_WON_ARGS.adUnitCode].bids)).to.have.lengthOf(1);
       expect(data.adUnits[GOOD_BID_WON_ARGS.adUnitCode].bids[GOOD_BID_WON_ARGS.bidderCode].eventCodes.includes(CNVR_CONSTANTS.WIN)).to.be.true;
       expect(data.adUnits[GOOD_BID_WON_ARGS.adUnitCode].bids[GOOD_BID_WON_ARGS.bidderCode].cpm).to.equal(GOOD_BID_WON_ARGS.cpm);
       expect(data.adUnits[GOOD_BID_WON_ARGS.adUnitCode].bids[GOOD_BID_WON_ARGS.bidderCode].originalCpm).to.equal(GOOD_BID_WON_ARGS.originalCpm);
@@ -667,9 +630,9 @@ describe('Conversant analytics adapter tests', function() {
 
       let BAD_ARGS = JSON.parse(JSON.stringify(AUCTION_END_PAYLOAD));
       delete BAD_ARGS.auctionId;
-      expect(requests.length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
       events.emit(constants.EVENTS.AUCTION_END, BAD_ARGS);
-      expect(requests.length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
       expect(
         utils.logError.calledWith(
           CNVR_CONSTANTS.LOG_PREFIX + 'onAuctionEnd(): No auctionId in args supplied so unable to process event.'
@@ -679,23 +642,18 @@ describe('Conversant analytics adapter tests', function() {
 
     it('should send the expected data', function() {
       sandbox.stub(utils, 'logError');
-      expect(requests.length).to.equal(0);
+      expect(requests).to.have.lengthOf(0);
       const AUCTION_ID = AUCTION_END_PAYLOAD.auctionId;
       const AD_UNIT_CODE = AUCTION_END_PAYLOAD.adUnits[0].code;
       const timeoutKey = cnvrHelper.getLookupKey(AUCTION_ID, AD_UNIT_CODE, 'appnexus');
       cnvrHelper.timeoutCache[timeoutKey] = { timeReceived: Date.now() };
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(1);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(1);
       expect(utils.logError.called).to.equal(false);
 
       events.emit(constants.EVENTS.AUCTION_END, AUCTION_END_PAYLOAD);
-      // expect(utils.logError.callCount).to.equal(1);
-      /* utils.logError.getCall(0).args.forEach(arg => {
-        console.log("foobar: " + arg);
-      }); */
-      // expect(utils.logError.getCall(0).args[0]).to.equal('foobar');
       expect(utils.logError.called).to.equal(false);
-      expect(requests.length).to.equal(1);
-      expect(Object.keys(cnvrHelper.timeoutCache).length).to.equal(0);
+      expect(requests).to.have.lengthOf(1);
+      expect(Object.keys(cnvrHelper.timeoutCache)).to.have.lengthOf(0);
 
       const data = JSON.parse(requests[0].requestBody);
       expect(data.requestType).to.equal('auction_end');
@@ -703,13 +661,13 @@ describe('Conversant analytics adapter tests', function() {
       expect(data.auction.preBidVersion).to.equal(PREBID_VERSION);
       expect(data.auction.sid).to.equal(VALID_ALWAYS_SAMPLE_CONFIG.options.site_id);
 
-      expect(Object.keys(data.adUnits).length).to.equal(AUCTION_END_PAYLOAD.adUnits.length);
+      expect(Object.keys(data.adUnits)).to.have.lengthOf(AUCTION_END_PAYLOAD.adUnits.length);
 
-      expect(data.adUnits[AD_UNIT_CODE].sizes.length).to.equal(1);
+      expect(data.adUnits[AD_UNIT_CODE].sizes).to.have.lengthOf(1);
       expect(data.adUnits[AD_UNIT_CODE].sizes[0].w).to.equal(300);
       expect(data.adUnits[AD_UNIT_CODE].sizes[0].h).to.equal(250);
 
-      expect(Object.keys(data.adUnits[AD_UNIT_CODE].bids).length).to.equal(2);
+      expect(Object.keys(data.adUnits[AD_UNIT_CODE].bids)).to.have.lengthOf(2);
       expect(data.adUnits[AD_UNIT_CODE].bids['conversant'].eventCodes.includes(CNVR_CONSTANTS.BID)).to.be.true;
       expect(data.adUnits[AD_UNIT_CODE].bids['conversant'].cpm).to.equal(4);
       expect(data.adUnits[AD_UNIT_CODE].bids['conversant'].originalCpm).to.equal(0.04);
