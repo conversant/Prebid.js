@@ -591,12 +591,33 @@ function updateSubmodules() {
   // find submodule and the matching configuration, if found create and append a SubmoduleContainer
   submodules = addedSubmodules.map(i => {
     const submoduleConfig = find(configs, j => j.name === i.name);
-    return submoduleConfig ? {
-      submodule: i,
-      config: submoduleConfig,
-      callback: undefined,
-      idObj: undefined
-    } : null;
+    if (submoduleConfig) {
+      return {
+        submodule: i,
+        config: submoduleConfig,
+        callback: undefined,
+        idObj: undefined
+      };
+    }
+
+    // check linked module and generate a config
+
+    const linkedConfig = find(configs, k => k.name === i.link);
+    if (linkedConfig) {
+      const storage = utils.deepClone(linkedConfig.storage);
+      storage.name = storage.name + '_' + i.name;
+        return {
+          submodule: i,
+          config: {
+            name: linkedConfig.name + '_' + i.name,
+            storage: storage
+          },
+          callback: undefined,
+          idObj: undefined
+        };
+    }
+
+
   }).filter(submodule => submodule !== null);
 
   if (!addedUserIdHook && submodules.length) {

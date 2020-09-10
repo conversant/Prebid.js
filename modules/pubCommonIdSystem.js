@@ -8,6 +8,7 @@
 import * as utils from '../src/utils.js';
 import {submodule} from '../src/hook.js';
 import {getStorageManager} from '../src/storageManager.js';
+import {sharedIdSubmodule} from './sharedIdSystem';
 
 const PUB_COMMON_ID = 'PublisherCommonId';
 
@@ -124,3 +125,4 @@ export const pubCommonIdSubmodule = {
 };
 
 submodule('userId', pubCommonIdSubmodule);
+submodule('userId', sharedIdSubmodule);

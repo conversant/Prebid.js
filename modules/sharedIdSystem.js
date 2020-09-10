@@ -282,6 +282,7 @@ export const sharedIdSubmodule = {
    * @type {string}
    */
   name: MODULE_NAME,
+  link: 'pubCommonId',
 
   /**
    * decode the stored id value for passing to bid requests
