@@ -8,7 +8,7 @@
 import {submodule} from '../src/hook.js';
 import {getStorageManager} from '../src/storageManager.js';
 import {ajax} from '../src/ajax.js';
-import { parseUrl, buildUrl, logError } from '../src/utils.js';
+import {parseUrl, buildUrl, logError, logInfo} from '../src/utils.js';
 import {uspDataHandler} from '../src/adapterManager.js';
 
 const MODULE_NAME = 'publinkId';
@@ -65,6 +65,8 @@ function makeCallback(config = {}, consentData) {
       } else {
         logError('params.e must be a hex string');
       }
+    } else {
+      logError('params.e is required by publink');
     }
   };
 }
@@ -132,6 +134,7 @@ export const publinkIdSubmodule = {
    * @returns {IdResponse}
    */
   getId: function(config, consentData, storedId) {
+    logInfo(`Invoking Publink Sync `, arguments);
     const localValue = getlocalValue();
     if (localValue) {
       return {id: localValue};
