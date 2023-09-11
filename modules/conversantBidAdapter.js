@@ -158,6 +158,11 @@ export const spec = {
         }
       }
 
+      if (bidderRequest.gppConsent) {
+        deepSetValue(r, 'regs.ext.gpp', bidderRequest.gppConsent.gppString);
+        deepSetValue(r, 'regs.ext.gpp_sid', bidderRequest.gppConsent.applicableSections);
+      }
+
       if (bidderRequest.uspConsent) {
         deepSetValue(payload, 'regs.ext.us_privacy', bidderRequest.uspConsent);
       }
