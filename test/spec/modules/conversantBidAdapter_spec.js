@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 import {spec, storage} from 'modules/conversantBidAdapter.js';
 import * as utils from 'src/utils.js';
+import {deepSetValue} from 'src/utils.js';
 import {createEidsArray} from 'modules/userId/eids.js';
 import {deepAccess} from 'src/utils';
 // load modules that register ORTB processors
@@ -516,6 +517,49 @@ describe('Conversant adapter tests', function() {
         expect(bid).to.have.property('vastXml', '<?xml><VAST></VAST>');
       });
     }
+  });
+
+  it('Paapi', function() {
+    const paapi = [
+      {
+        impid: 'bid000',
+        igs: [
+          {
+            config: {
+              seller: 'https://paapi.ad.cpe.dotomi.com',
+              decisionLogicURL: 'https://paapi.ad.cpe.dotomi.com/js/decision-logic-component-seller.js',
+              interestGroupBuyers: [ 'https://cookieless-campaign.lab-00.retargetly.com' ],
+              perBuyerSignals: {
+                'https://cookieless-campaign.lab-00.retargetly.com': { 'tid': '123456789012341234' }
+              },
+              sellerSignals: {
+                networkRequestId: '717847096745883980',
+                transactionId: '717847096745883981',
+                siteId: '207693',
+                tid: 5,
+                supplyTypeId: 1,
+                partnerId: 'Prebid.js',
+                partnerVersion: '1.2.3',
+                placementId: '10145350'
+              }
+            }
+          }
+        ]
+      }];
+    const request = spec.buildRequests([bidRequests[0]], {});
+    let bidResponse = JSON.parse(JSON.stringify(bidResponses));
+    bidResponse.body.seatbid[0].bid = [bidResponses.body.seatbid[0].bid[0]];
+    deepSetValue(bidResponse, 'body.ext.igi', paapi);
+
+    debugger; //eslint-disable-line
+    const response = spec.interpretResponse(bidResponse, request);
+    const bid = response.bids[0];
+
+    expect(bid).to.have.property('requestId', 'bid000');
+    expect(response).to.have.property('paapiAuctionConfigs');
+    const paapiResponse = response.paapiAuctionConfigs[0];
+    expect(paapiResponse).to.have.property('bidId', paapi[0].impid);
+    expect(paapiResponse.config).to.deep.equal(paapi[0].igs[0].config);
   });
 
   it('Verify publisher commond id support', function() {

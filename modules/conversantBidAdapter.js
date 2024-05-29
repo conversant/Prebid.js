@@ -176,7 +176,18 @@ export const spec = {
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
   interpretResponse: function(serverResponse, bidRequest) {
-    return converter.fromORTB({request: bidRequest.data, response: serverResponse.body});
+    const ortbBids = converter.fromORTB({request: bidRequest.data, response: serverResponse.body});
+    const ortbAuctionConfigs = deepAccess(serverResponse, 'body.ext.igi') || [];
+    const configs = ortbAuctionConfigs.flatMap(entry => {
+      return entry.igs.map(ig => ({...ig, bidId: entry.impid}));
+    });
+    if (configs.length > 0) {
+      return {
+        bids: ortbBids,
+        paapiAuctionConfigs: configs
+      };
+    }
+    return ortbBids;
   },
 
   /**
