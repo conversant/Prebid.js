@@ -1,6 +1,5 @@
 import {
   buildUrl,
-  deepAccess,
   deepSetValue,
   getBidIdParameter,
   isArray,
@@ -147,7 +146,7 @@ export const spec = {
     }
 
     if (isVideoRequest(bid)) {
-      const mimes = bid.params.mimes || deepAccess(bid, 'mediaTypes.video.mimes');
+      const mimes = bid.params.mimes ?? bid.mediaTypes?.video?.mimes;
       if (!mimes) {
         // Give a warning but let it pass
         logWarn(BIDDER_CODE + ': mimes should be specified for videos');
@@ -245,7 +244,7 @@ function getPubcid(bidRequest) {
  * @returns {boolean} True if it's a video bid
  */
 function isVideoRequest(bid) {
-  return bid.mediaType === 'video' || !!deepAccess(bid, 'mediaTypes.video');
+  return bid.mediaType === 'video' || !!bid.mediaTypes?.video;
 }
 
 /**
