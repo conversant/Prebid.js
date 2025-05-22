@@ -90,12 +90,10 @@ const converter = ortbConverter({
         context.mediaType = type;
       }
     }
-    const bidResponse = buildBidResponse(bid, context);
-    return bidResponse;
+    return buildBidResponse(bid, context);
   },
   response(buildResponse, bidResponses, ortbResponse, context) {
-    const response = buildResponse(bidResponses, ortbResponse, context);
-    return response;
+    return buildResponse(bidResponses, ortbResponse, context);
   },
   overrides: {
     imp: {
@@ -161,12 +159,11 @@ export const spec = {
 
   buildRequests: function(bidRequests, bidderRequest) {
     const payload = converter.toORTB({bidderRequest, bidRequests});
-    const result = {
+    return {
       method: 'POST',
       url: makeBidUrl(bidRequests[0]),
       data: payload,
     };
-    return result;
   },
   /**
    * Unpack the response from the server into a list of bids.
@@ -176,8 +173,7 @@ export const spec = {
    * @return {Bid[]} An array of bids which were nested inside the server.
    */
   interpretResponse: function(serverResponse, bidRequest) {
-    const ortbBids = converter.fromORTB({request: bidRequest.data, response: serverResponse.body});
-    return ortbBids;
+    return converter.fromORTB({request: bidRequest.data, response: serverResponse.body});
   },
 
   /**
