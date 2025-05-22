@@ -225,17 +225,10 @@ export const spec = {
 };
 
 function getPubcid(bidRequest) {
-  let pubcid = null;
-  if (bidRequest.userId && bidRequest.userId.pubcid) {
-    pubcid = bidRequest.userId.pubcid;
-  } else if (bidRequest.crumbs && bidRequest.crumbs.pubcid) {
-    pubcid = bidRequest.crumbs.pubcid;
-  }
-  if (!pubcid) {
-    const pubcidName = getBidIdParameter('pubcid_name', bidRequest.params) || '_pubcid';
-    pubcid = readStoredValue(pubcidName);
-  }
-  return pubcid;
+  if (bidRequest.userIdAsEids?.pubcid) return bidRequest.userIdAsEids.pubcid;
+  if (bidRequest.crumbs?.pubcid) return bidRequest.crumbs.pubcid;
+  const pubcidName = getBidIdParameter('pubcid_name', bidRequest.params) || '_pubcid';
+  return readStoredValue(pubcidName);
 }
 
 /**
