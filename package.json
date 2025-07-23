@@ -51,7 +51,7 @@
   "devDependencies": {
     "@babel/eslint-parser": "^7.16.5",
     "@babel/plugin-transform-runtime": "^7.27.4",
-    "@babel/register": "^7.24.6",
+    "@babel/register": "^7.27.1",
     "@eslint/compat": "^1.2.7",
     "@types/google-publisher-tag": "^1.20250210.0",
     "@wdio/browserstack-service": "^9.15.0",
